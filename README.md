@@ -18,7 +18,8 @@ class TermaiModelHandler {
     private func loadModel() -> Termai {
         do {
             let config = MLModelConfiguration()
-            let model = try Termai(configuration: config)
+            let modelURL = Bundle.main.url(forResource: "termai", withExtension: "mlmodelc")!
+            let model = try Termai(contentsOf: modelURL, configuration: config)
             return model
         } catch {
             fatalError("Erro ao carregar o modelo: \(error)")
@@ -45,11 +46,13 @@ class TermaiModelHandler {
     func generateResponse(for input: String) -> String {
         var response = "Erro ao gerar resposta."
         
-        for item in trainingData {
-            if item.input.lowercased().contains(input.lowercased()) {
-                response = item.output
-                break
-            }
+        do {
+            let modelInput = try MLMultiArray(shape: [1], dataType: .double)
+            // Preencher o MLMultiArray com os dados de entrada, se necessário
+            let modelOutput = try model.prediction(input: modelInput)
+            response = modelOutput.string
+        } catch {
+            print("Erro ao gerar resposta com o modelo: \(error)")
         }
         
         return response
@@ -166,15 +169,15 @@ func combineDatasets(csvPaths: [String]) -> MLDataTable? {
 }
 
 let datasetPaths = [
-    "/caminho/para/dataset1.csv",
-    "/caminho/para/dataset2.csv",
-    "/caminho/para/dataset3.csv"
+    "/cmd.csv",
+    "/linux.csv",
+    "/macos.csv"
 ]
 
 if let combinedData = combineDatasets(csvPaths: datasetPaths) {
     do {
         let model = try MLClassifier(trainingData: combinedData, targetColumn: "label")
-        let modelURL = URL(fileURLWithPath: "/caminho/para/salvar/o/modelo.mlmodel")
+        let modelURL = URL(fileURLWithPath: "/termai.mlmodel")
         try model.write(to: modelURL)
         print("Modelo treinado e salvo com sucesso em \(modelURL)")
     } catch {
